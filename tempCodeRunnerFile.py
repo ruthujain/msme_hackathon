@@ -1,5 +1,0 @@
- # logging.info("Vectorizing training data...")
-            # self.vectorizer = TfidfVectorizer()
-            # X_train_vec = self.vectorizer.fit_transform(X_train)
-            # X_test_vec = self.vectorizer.transform(X_test)
-            # logging.info("Vectorization complete.")
