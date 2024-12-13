@@ -1,7 +1,7 @@
 import './App.css';
 import { useState } from 'react';
 import { create } from 'ipfs-http-client';
-import DocumentHandler from "./components/DocumentHandler"; // Import new component
+// import DocumentHandler from './components/DocumentHandler'; // File not found, commenting for now
 
 const client = create({
   host: 'localhost',
@@ -19,25 +19,19 @@ function App() {
   async function onChange(e) {
     const file = e.target.files[0];
     try {
-      // Upload the file to your local IPFS node
       const added = await client.add(file);
-      const url = `http://localhost:8080/ipfs/${added.path}`; // Local gateway URL
+      const url = `http://localhost:8080/ipfs/${added.path}`;
       updateFileUrl(url);
       console.log('IPFS URI:', url);
 
-      // Add to uploadedFiles list
       setUploadedFiles((prevFiles) => [
         ...prevFiles,
         { name: file.name || 'Bill of Lading', hash: added.path, url },
       ]);
-
-
     } catch (error) {
       console.error('Error uploading file:', error);
     }
   }
-}
-
 
   async function deleteFile(hash) {
     try {
@@ -47,12 +41,28 @@ function App() {
     } catch (error) {
       console.error('Error deleting file:', error);
     }
+  } 
 
-  function generateHsnCode() {
+  async function generateHsnCode() {
     if (description.trim()) {
-      // Simple logic for demonstration purposes
-      const hash = description.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-      setHsnCode(`HSN-${hash.toString().slice(0, 6)}`);
+      try {
+        const response = await fetch('http://localhost:5000/predict-hscode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description }),
+        });
+  
+        if (response.ok) {
+          const data = await response.json();
+          setHsnCode(data.hscode);
+        } else {
+          const errorData = await response.json();
+          setHsnCode(`Error: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error('Error generating HSN code:', error);
+        setHsnCode('Error: Unable to generate HSN code.');
+      }
     } else {
       setHsnCode('Please enter a description');
     }
@@ -63,7 +73,7 @@ function App() {
       const pins = await client.pin.ls();
       const files = [];
       for await (const { cid, type } of pins) {
-        if (type === 'recursive') { // Only include recursive pins
+        if (type === 'recursive') {
           const url = `http://localhost:8080/ipfs/${cid.toString()}`;
           files.push({ name: 'Bill of Lading', hash: cid.toString(), url });
         }
@@ -72,17 +82,14 @@ function App() {
     } catch (error) {
       console.error('Error fetching pinned files:', error);
     }
-  }  
-
+  }
 
   return (
     <div className="App">
-      {/* Navigation Bar */}
       <nav className="navbar">
         <h2>IPFS Project Manager</h2>
       </nav>
 
-      {/* Tagline */}
       <header>
         <h3>Securely Store and Generate Unique Identifiers for Your Projects</h3>
       </header>
@@ -99,7 +106,7 @@ function App() {
         </div>
       )}
 
-<button
+      <button
         onClick={() => {
           if (!showFiles) fetchPinnedFiles();
           setShowFiles(!showFiles);
@@ -169,38 +176,68 @@ function App() {
         </div>
       )}
 
-      {/* File Upload Section */}
-      <div className="upload-section">
-        <h1>IPFS File Upload</h1>
-        <input type="file" onChange={onChange} />
-        {fileUrl && (
-          <div>
-            <img src={fileUrl} width="600px" alt="Uploaded File Preview" />
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-              {fileUrl}
-            </a>
-          </div>
-        )}
-      </div>
-
-      {/* Description Input Section */}
-      <div className="hsn-section">
-        <h2>Generate HSN Code</h2>
+      <div className="hsn-section" style={{ margin: '20px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
+        <h2 style={{ color: '#4CAF50' }}>Generate HSN Code</h2>
+        
         <textarea
           placeholder="Enter description..."
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          style={{
+            width: '300px',
+            height: '80px',
+            padding: '10px',
+            fontSize: '14px',
+            border: '2px solid #4CAF50',
+            borderRadius: '5px',
+            marginBottom: '10px',
+            resize: 'none',
+          }}
         ></textarea>
-        <button onClick={generateHsnCode}>Generate HSN Code</button>
-        {hsnCode && <p>{hsnCode}</p>}
+        
+        <button
+          onClick={generateHsnCode}
+          style={{
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '5px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            marginTop: '10px',
+          }}
+        >
+          Generate
+        </button>
+
+        {hsnCode && (
+          <div
+            style={{
+              marginTop: '20px',
+              padding: '15px',
+              width: '300px',
+              textAlign: 'center',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              border: '2px solid #4CAF50',
+              borderRadius: '5px',
+              backgroundColor: '#f9f9f9',
+              marginTop: '20px',
+              marginLeft: 'auto',
+              marginRight: 'auto',
+            }}
+          >
+            {hsnCode}
+          </div>
+        )}
       </div>
 
-      {/* Include TradeTrust Component */}
-      <div className="tradetrust-section">
+      {/* Commenting out TradeTrust Component for now */}
+      {/* <div className="tradetrust-section">
         <DocumentHandler />
-      </div>
+      </div> */}
 
-      {/* Footer */}
       <footer>
         <p>© 2024 IPFS Project Manager. All rights reserved.</p>
       </footer>
