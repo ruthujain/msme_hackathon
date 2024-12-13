@@ -15,6 +15,30 @@ function App() {
   const [showFiles, setShowFiles] = useState(false);
   const [description, setDescription] = useState('');
   const [hsnCode, setHsnCode] = useState('');
+  const [responseData, setResponseData] = useState(null);
+
+  async function sendToFlask(fileData) {
+    try {
+      const response = await fetch('http://localhost:5000/extract-bol-fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fileData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setResponseData(data); // Save Flask response to state
+        console.log('File sent to Flask successfully:', data);
+      } else {
+        const errorText = await response.text();
+        setResponseData({ status: 'failure', message: errorText }); // Handle errors gracefully
+        console.error('Error sending file to Flask:', errorText);
+      }
+    } catch (error) {
+      setResponseData({ status: 'failure', message: error.message });
+      console.error('Error in sendToFlask:', error);
+    }
+  }
 
   async function onChange(e) {
     const file = e.target.files[0];
@@ -24,10 +48,16 @@ function App() {
       updateFileUrl(url);
       console.log('IPFS URI:', url);
 
-      setUploadedFiles((prevFiles) => [
-        ...prevFiles,
-        { name: file.name || 'Bill of Lading', hash: added.path, url },
-      ]);
+      const fileData = {
+        name: file.name || 'Bill of Lading',
+        hash: added.path,
+        file_url: url,
+      };
+  
+      setUploadedFiles((prevFiles) => [...prevFiles, fileData]);
+  
+      // Send the file data to Flask
+      await sendToFlask(fileData);
     } catch (error) {
       console.error('Error uploading file:', error);
     }
@@ -89,11 +119,11 @@ function App() {
       <nav className="navbar">
         <h2>IPFS Project Manager</h2>
       </nav>
-
+  
       <header>
         <h3>Securely Store and Generate Unique Identifiers for Your Projects</h3>
       </header>
-
+  
       <h1>IPFS Example with Local Node</h1>
       <input type="file" onChange={onChange} />
       {fileUrl && (
@@ -105,7 +135,7 @@ function App() {
           </a>
         </div>
       )}
-
+  
       <button
         onClick={() => {
           if (!showFiles) fetchPinnedFiles();
@@ -120,7 +150,7 @@ function App() {
       >
         {showFiles ? 'Hide Uploaded Files' : 'Show Uploaded Files'}
       </button>
-
+  
       {showFiles && (
         <div style={{ marginTop: '20px', textAlign: 'left' }}>
           <h3>Uploaded Files</h3>
@@ -175,10 +205,30 @@ function App() {
           </ul>
         </div>
       )}
-
-      <div className="hsn-section" style={{ margin: '20px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}>
+  
+      <div>
+        <h1>Bill of Lading Fields Extraction</h1>
+        {/* Display Flask response */}
+        {responseData && (
+          <div className={`response ${responseData.status}`}>
+            {responseData.status === 'success' ? (
+              <>
+                <h2>Extracted Fields:</h2>
+                <pre>{JSON.stringify(responseData.bill_of_lading_fields, null, 2)}</pre>
+              </>
+            ) : (
+              <p>Error: {responseData.message}</p>
+            )}
+          </div>
+        )}
+      </div>
+  
+      <div
+        className="hsn-section"
+        style={{ margin: '20px', fontFamily: 'Arial, sans-serif', textAlign: 'center' }}
+      >
         <h2 style={{ color: '#4CAF50' }}>Generate HSN Code</h2>
-        
+  
         <textarea
           placeholder="Enter description..."
           value={description}
@@ -194,7 +244,7 @@ function App() {
             resize: 'none',
           }}
         ></textarea>
-        
+  
         <button
           onClick={generateHsnCode}
           style={{
@@ -210,7 +260,7 @@ function App() {
         >
           Generate
         </button>
-
+  
         {hsnCode && (
           <div
             style={{
@@ -223,7 +273,6 @@ function App() {
               border: '2px solid #4CAF50',
               borderRadius: '5px',
               backgroundColor: '#f9f9f9',
-              marginTop: '20px',
               marginLeft: 'auto',
               marginRight: 'auto',
             }}
@@ -232,17 +281,17 @@ function App() {
           </div>
         )}
       </div>
-
+  
       {/* Commenting out TradeTrust Component for now */}
       {/* <div className="tradetrust-section">
         <DocumentHandler />
       </div> */}
-
+  
       <footer>
         <p>© 2024 IPFS Project Manager. All rights reserved.</p>
       </footer>
     </div>
-  );
+  );  
 }
 
 export default App;
